@@ -15,7 +15,6 @@ const navItems = ["Home", "About Us", "Product & Services", "Target Market", "Ou
 
 function App() {
   const [activeNav, setActiveNav] = useState("Home");
-  const [pressedButton, setPressedButton] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [hoveredNav, setHoveredNav] = useState(null); // State for navigation buttons
   const [btnHovered, setBtnHovered] = useState(false); // State for 'Get in Touch' button (reverted from previous change)

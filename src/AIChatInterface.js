@@ -6,10 +6,8 @@ function AIChatInterface({ onClose, isMobile }) {
   const [isOpen, setIsOpen] = useState(false); // State for animation
   const [isTyping, setIsTyping] = useState(false); // State to show typing indicator
   const [currentBot, setCurrentBot] = useState('general'); // 'general' or 'plantDoctor'
-  const [conversationStep, setConversationStep] = useState('initial'); // 'initial', 'awaitingName', 'awaitingEmail'
-  // New states for human support escalation
-  const [userName, setUserName] = useState(''); // To store the user's name
-  const [userContactAndConcern, setUserContactAndConcern] = useState(''); // To store contact info and concern
+  const [conversationStep, setConversationStep] = useState('initial'); // 'initial', 'awaitingName', 'awaitingContactAndConcern'
+  // State for human support escalation
   const [isLiveAgentChat, setIsLiveAgentChat] = useState(false); // To indicate if a live agent is active
 
   const messagesEndRef = useRef(null);
@@ -307,8 +305,6 @@ function AIChatInterface({ onClose, isMobile }) {
     setInput(""); // Clear input field
     setIsTyping(true);
     setConversationStep('initial'); // Reset conversation step
-    setUserName(''); // Clear user name
-    setUserContactAndConcern(''); // Clear contact and concern
     setIsLiveAgentChat(false); // Reset live agent status
 
 
@@ -355,14 +351,9 @@ function AIChatInterface({ onClose, isMobile }) {
         // Assuming user provides name, contact, and concern in one message
         const fullDetails = userMessage.text;
         // A very basic attempt to extract name and contact for a more personalized message
-        const nameMatch = fullDetails.match(/(my name is|i am)\s+([a-zA-Z\s]+?)(,|\.|$)/i);
-        const contactMatch = fullDetails.match(/((email|phone|contact)\s+is|reach me at)\s+([^\s,]+)/i);
-
+        const nameMatch = fullDetails.match(/(my name is|i am)\s+([a-zA-Z\s]+?)(?:,|\.|$)/i);
         const extractedName = nameMatch && nameMatch[2] ? nameMatch[2].trim() : 'valued customer';
-        const extractedContact = contactMatch && contactMatch[3] ? contactMatch[3].trim() : 'your provided contact';
 
-        setUserName(extractedName);
-        setUserContactAndConcern(fullDetails); // Store the full input for the agent
         setIsLiveAgentChat(true); // Activate live agent mode
 
         aiResponseObject.text = `Thank you, ${extractedName}! We have your details and are now connecting you. Please wait a moment.
