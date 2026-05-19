@@ -14,7 +14,7 @@ describe("OurTeam Component", () => {
   it("renders all team members with their roles", () => {
     render(<OurTeam />);
     
-    expect(screen.getByText("JHUN RUSSEL D. CLEMENTE")).toBeDefined();
+    expect(screen.getByText("RUSSEL")).toBeDefined();
 
     const nameElements = screen.getAllByText("NAME");
     expect(nameElements).toHaveLength(3);
@@ -26,7 +26,7 @@ describe("OurTeam Component", () => {
   it("renders team member images correctly", () => {
     render(<OurTeam />);
     
-    const russelImg = screen.getByAltText("JHUN RUSSEL D. CLEMENTE");
+    const russelImg = screen.getByAltText("RUSSEL");
     expect(russelImg).toHaveAttribute("src", "Russel.jpeg");
 
     const placeholderImgs = screen.getAllByAltText("NAME");
@@ -39,7 +39,7 @@ describe("OurTeam Component", () => {
   it("handles mouse enter and leave events on cards correctly", () => {
     render(<OurTeam />);
     
-    const firstMemberCard = screen.getByText("JHUN RUSSEL D. CLEMENTE").closest("div");
+    const firstMemberCard = screen.getByText("RUSSEL").closest("div");
     
     // Validate that hovering doesn't crash the state
     fireEvent.mouseEnter(firstMemberCard);
