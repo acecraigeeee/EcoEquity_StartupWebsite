@@ -344,8 +344,7 @@ describe("Background video", () => {
     `);
 
     // Check for positioning styles
-    expect(chatButton).toHaveStyle("position: absolute");
-    expect(chatButton).toHaveStyle("bottom: 28px");
+    expect(chatButton).toHaveStyle("align-self: flex-end");
     expect(chatButton).toHaveStyle("z-index: 10");
   });
 });

@@ -1,47 +1,98 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+
+const targetMarketCards = [
+  { heading: "Urban Novice", text: "AI-Guided Success: Market the 24/7 AI Plant Doctor as the indispensable tool for overcoming planting failure,leading to initial app download." },
+  { heading: "Micro-Vendor", text: "Livelihood Creation: Market the Local Marketplace as the zero-friction platform to instantly monetize garden excess and florals.." },
+  { heading: "Institutional Buyer (B2B)", text: "Cost & Supply Chain Efficiency:Market the B2B Surplus Module as the exclusive source for high-volume, below-market surplus produce (e.g., Baguio vegetables)." },
+];
 
 function TargetMarket() {
   const [hoveredCard, setHoveredCard] = useState(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const handleScroll = (e) => {
+    if (!isMobile) return;
+    const { scrollLeft, scrollWidth, clientWidth } = e.target;
+    if (scrollWidth <= clientWidth) return;
+
+    const ratio = scrollLeft / (scrollWidth - clientWidth);
+    const index = Math.round(ratio * (targetMarketCards.length - 1));
+
+    if (index !== activeIndex && !isNaN(index)) {
+      setActiveIndex(index);
+    }
+  };
 
   return (
-    <div style={styles.wrap}>
+    <div style={{ ...styles.wrap, ...(isMobile ? styles.wrapMobile : {}) }}>
+      <style>
+        {`
+          .hide-scroll::-webkit-scrollbar { display: none; }
+          .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+        `}
+      </style>
+
       <div style={styles.badge}>
         <span style={styles.badgeDot} />
         Who We Serve
       </div>
 
-      <h1 style={styles.title}>
+      <h1 style={{ ...styles.title, ...(isMobile ? styles.titleMobile : {}) }}>
         Target <span style={styles.accent}>Market</span>
       </h1>
+      <div style={styles.titleUnderline} />
 
-      <p style={styles.body}>
+      <p style={{ ...styles.body, ...(isMobile ? styles.bodyMobile : {}) }}>
         EcoEquity serves households and communities in the Philippines who are
         eager to achieve agricultural self-sufficiency through sustainable farming
         practices.
       </p>
 
-      <div style={styles.cardRow}>
-        {[
-          { heading: "Urban Novice", text: "AI-Guided Success: Market the 24/7 AI Plant Doctor as the indispensable tool for overcoming planting failure,leading to initial app download." },
-          { heading: "Micro-Vendor", text: "Livelihood Creation: Market the Local Marketplace as the zero-friction platform to instantly monetize garden excess and florals.." },
-          { heading: "Institutional Buyer (B2B)", text: "Cost & Supply Chain Efficiency:Market the B2B Surplus Module as the exclusive source for high-volume, below-market surplus produce (e.g., Baguio vegetables)." },
-        ].map((c) => (
+      <div 
+        style={{ ...styles.cardRow, ...(isMobile ? styles.cardRowMobile : {}) }} 
+        className="hide-scroll"
+        onScroll={handleScroll}
+      >
+        {targetMarketCards.map((c) => (
           <div
             key={c.heading}
             style={{
               ...styles.card,
+              ...(isMobile ? styles.cardMobile : {}),
               ...(hoveredCard === c.heading ? styles.cardHov : {}),
             }}
             onMouseEnter={() => setHoveredCard(c.heading)}
             onMouseLeave={() => setHoveredCard(null)}
           >
-            <h3 style={styles.cardHeading}>{c.heading}</h3>
-            <p style={styles.cardText}>{c.text}</p>
+            <h3 style={{ ...styles.cardHeading, ...(isMobile ? styles.cardHeadingMobile : {}) }}>{c.heading}</h3>
+            <p style={{ ...styles.cardText, ...(isMobile ? styles.cardTextMobile : {}) }}>{c.text}</p>
           </div>
         ))}
       </div>
 
-      <p style={{ ...styles.body, marginTop: "28px" }}>
+      {/* Scroll Indicator Dots - Mobile Only */}
+      {isMobile && (
+        <div style={styles.indicatorRow}>
+          {targetMarketCards.map((_, i) => (
+            <div
+              key={i}
+              style={{
+                ...styles.dot,
+                ...(activeIndex === i ? styles.dotActive : {}),
+              }}
+            />
+          ))}
+        </div>
+      )}
+
+      <p style={{ ...styles.body, ...(isMobile ? styles.bodyMobile : {}), marginTop: isMobile ? "12px" : "14px" }}>
         To achieve 150,000+ Active Monthly Users, onboard 3,500+ Active Micro-
         Vendors generating ₱63M in annual commerce fees, and successfully
         integrate the B2B network to mitigate critical food waste, thus
@@ -58,11 +109,14 @@ const styles = {
     flexDirection: "column",
     alignItems: "center",
     textAlign: "center",
-    padding: "32px 16px 24px",
+    padding: "10px 16px 20px",
     maxWidth: "820px",
     margin: "0 auto",
     animation: "fadeInUp 0.75s cubic-bezier(.22,1,.36,1) both",
     fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+  },
+  wrapMobile: {
+    padding: "20px 10px 20px",
   },
   badge: {
     display: "inline-flex",
@@ -97,6 +151,18 @@ const styles = {
     textShadow: "0 2px 20px rgba(0,0,0,0.35)",
     animation: "titleReveal 0.9s cubic-bezier(.22,1,.36,1) 0.15s both",
   },
+  titleMobile: {
+    fontSize: "clamp(24px, 7vw, 36px)",
+  },
+  titleUnderline: {
+    width: "118px",
+    height: "4px",
+    background: "linear-gradient(90deg, rgba(74,222,128,0), #86efac, #7dd3fc, rgba(125,211,252,0))",
+    margin: "0 auto 18px",
+    boxShadow: "0 0 18px rgba(134,239,172,0.75)",
+    borderRadius: "999px",
+    animation: "titleReveal 0.9s cubic-bezier(.22,1,.36,1) 0.15s both",
+  },
   accent: {
     background: "linear-gradient(90deg, #4ade80, #86efac)",
     WebkitBackgroundClip: "text",
@@ -111,13 +177,31 @@ const styles = {
     maxWidth: "580px",
     marginBottom: "14px",
   },
+  bodyMobile: {
+    fontSize: "13px",
+    lineHeight: "1.6",
+    marginBottom: "10px",
+  },
   cardRow: {
     display: "flex",
     gap: "14px",
     flexWrap: "wrap",
     justifyContent: "center",
-    marginTop: "28px",
+    marginTop: "12px",
     width: "100%",
+  },
+  cardRowMobile: {
+    flexWrap: "nowrap",
+    justifyContent: "flex-start",
+    overflowX: "auto",
+    padding: "10px 40px 20px",
+    gap: "16px",
+    scrollSnapType: "x mandatory",
+    scrollPadding: "0 40px",
+    WebkitOverflowScrolling: "touch",
+    width: "100%",
+    boxSizing: "border-box",
+    marginTop: "12px",
   },
   card: {
     background: "rgba(255,255,255,0.08)",
@@ -140,6 +224,13 @@ const styles = {
       "box-shadow 0.22s ease, " +
       "border-color 0.18s ease",
   },
+  cardMobile: {
+    flex: "0 0 240px",
+    maxWidth: "none",
+    padding: "20px 16px",
+    scrollSnapAlign: "center",
+    scrollSnapStop: "always",
+  },
   cardHov: {
     transform: "translateY(-6px) scale(1.03)",
     background: "rgba(255,255,255,0.18)",
@@ -156,11 +247,36 @@ const styles = {
     margin: 0,
     letterSpacing: "-0.2px",
   },
+  cardHeadingMobile: {
+    fontSize: "14px",
+  },
   cardText: {
     fontSize: "13px",
     color: "rgb(255, 255, 255)",
     lineHeight: 1.6,
     margin: 0,
+  },
+  cardTextMobile: {
+    fontSize: "12px",
+  },
+  indicatorRow: {
+    display: "flex",
+    justifyContent: "center",
+    gap: "8px",
+    marginTop: "0px",
+    paddingBottom: "12px",
+  },
+  dot: {
+    width: "6px",
+    height: "6px",
+    borderRadius: "50%",
+    background: "rgba(255, 255, 255, 0.2)",
+    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+  },
+  dotActive: {
+    background: "#4ade80",
+    transform: "scale(1.25)",
+    boxShadow: "0 0 10px rgba(74, 222, 128, 0.4)",
   },
 };
 

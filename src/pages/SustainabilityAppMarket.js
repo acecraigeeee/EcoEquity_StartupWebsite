@@ -1,7 +1,14 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 function SustainabilityAppMarket() {
   const [hoveredTableIndex, setHoveredTableIndex] = useState(null);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const tamData = [
     {
@@ -50,24 +57,28 @@ function SustainabilityAppMarket() {
   const renderTable = (data, index) => (
     <div
       key={index}
-      style={{ ...styles.tableWrapper, ...(hoveredTableIndex === index ? styles.tableWrapperHov : {}) }}
+      style={{
+        ...styles.tableWrapper,
+        ...(isMobile ? styles.tableWrapperMobile : {}),
+        ...(hoveredTableIndex === index ? styles.tableWrapperHov : {}),
+      }}
       onMouseEnter={() => setHoveredTableIndex(index)}
       onMouseLeave={() => setHoveredTableIndex(null)}
     >
       <table style={styles.table}>
         <thead>
           <tr>
-            <th style={styles.th}>Components</th>
-            <th style={styles.th}>Description</th>
-            <th style={styles.th}>Estimated Size (Conceptual)</th>
+            <th style={{ ...styles.th, ...(isMobile ? styles.thMobile : {}) }}>Components</th>
+            <th style={{ ...styles.th, ...(isMobile ? styles.thMobile : {}) }}>Description</th>
+            <th style={{ ...styles.th, ...(isMobile ? styles.thMobile : {}) }}>Estimated Size (Conceptual)</th>
           </tr>
         </thead>
         <tbody>
           {data.map((row, rowIndex) => (
             <tr key={rowIndex}>
-              <td style={styles.td}>{row.components}</td>
-              <td style={styles.td}>{row.description}</td>
-              <td style={styles.td}>{row.estimatedSize}</td>
+              <td style={{ ...styles.td, ...(isMobile ? styles.tdMobile : {}) }}>{row.components}</td>
+              <td style={{ ...styles.td, ...(isMobile ? styles.tdMobile : {}) }}>{row.description}</td>
+              <td style={{ ...styles.td, ...(isMobile ? styles.tdMobile : {}) }}>{row.estimatedSize}</td>
             </tr>
           ))}
         </tbody>
@@ -76,27 +87,43 @@ function SustainabilityAppMarket() {
   );
 
   return (
-    <div style={styles.wrap}>
-      <div style={styles.badge}>
+    <div style={{ ...styles.wrap, ...(isMobile ? styles.wrapMobile : {}) }}>
+      <style>
+        {`
+          .hide-scroll::-webkit-scrollbar { display: none; }
+          .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+        `}
+      </style>
+
+      <div style={{ ...styles.badge, ...(isMobile ? styles.badgeMobile : {}) }}>
         <span style={styles.badgeDot} />
         Who We Serve
       </div>
 
-      <h1 style={styles.title}>
+      <h1 style={{ ...styles.title, ...(isMobile ? styles.titleMobile : {}) }}>
         Sustainability App Market Sizing:  <span style={styles.accent}>TAM, SAM, SOM (Philippines Focus)</span>
       </h1>
+      <div style={styles.titleUnderline} />
 
-      <h2 style={styles.subtitle}>1. TAM (Total Available Market) - The Philippine Opportunity</h2>
-      <p style={styles.body}>The entire market within the Philippines that could potentially use the product, driven by the shift towards self-sufficiency, wellness, and reducing the cost of living through organic produce.</p>
-      {renderTable(tamData, 0)}
+      <div style={{ ...styles.cardRow, ...(isMobile ? styles.cardRowMobile : {}) }} className="hide-scroll">
+        <div style={{ ...styles.sectionCard, ...(isMobile ? styles.sectionCardMobile : {}) }}>
+          <h2 style={{ ...styles.subtitle, ...(isMobile ? styles.subtitleMobile : {}) }}>1. TAM (Total Available Market)</h2>
+          <p style={{ ...styles.body, ...(isMobile ? styles.bodyMobile : {}) }}>The entire market within the Philippines that could potentially use the product, driven by the shift towards self-sufficiency.</p>
+          {renderTable(tamData, 0)}
+        </div>
 
-      <h2 style={styles.subtitle}>2. SAM (Serviceable Available Market) - Our Reach in Major Urban Centers</h2>
-      <p style={styles.body}>The portion of the TAM that our services can realistically reach, constrained by high-density urban areas, consistent internet connectivity, and mobile-first users.</p>
-      {renderTable(samData, 1)}
+        <div style={{ ...styles.sectionCard, ...(isMobile ? styles.sectionCardMobile : {}) }}>
+          <h2 style={{ ...styles.subtitle, ...(isMobile ? styles.subtitleMobile : {}) }}>2. SAM (Serviceable Available Market)</h2>
+          <p style={{ ...styles.body, ...(isMobile ? styles.bodyMobile : {}) }}>The portion of the TAM that our services can realistically reach, constrained by urban density and connectivity.</p>
+          {renderTable(samData, 1)}
+        </div>
 
-      <h2 style={styles.subtitle}>3. SOM (Serviceable Obtainable Market) - Our Initial Focus (Year 3 Goals)</h2>
-      <p style={styles.body}>The realistic market share we can capture in the first 3 years of operation, focusing on highly engaged early adopters and community builders in our primary launch cities.</p>
-      {renderTable(somData, 2)}
+        <div style={{ ...styles.sectionCard, ...(isMobile ? styles.sectionCardMobile : {}) }}>
+          <h2 style={{ ...styles.subtitle, ...(isMobile ? styles.subtitleMobile : {}) }}>3. SOM (Serviceable Obtainable Market)</h2>
+          <p style={{ ...styles.body, ...(isMobile ? styles.bodyMobile : {}) }}>The realistic market share we can capture in the first 3 years of operation, focusing on highly engaged early adopters.</p>
+          {renderTable(somData, 2)}
+        </div>
+      </div>
     </div>
   );
 }
@@ -113,6 +140,9 @@ const styles = {
     animation: "fadeInUp 0.75s cubic-bezier(.22,1,.36,1) both",
     fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
   },
+  wrapMobile: {
+    padding: "20px 10px 20px",
+  },
   badge: {
     display: "inline-flex",
     alignItems: "center",
@@ -127,6 +157,10 @@ const styles = {
     letterSpacing: "0.6px",
     textTransform: "uppercase",
     marginBottom: "20px",
+  },
+  badgeMobile: {
+    marginBottom: "12px",
+    padding: "4px 12px",
   },
   badgeDot: {
     width: "6px",
@@ -146,6 +180,18 @@ const styles = {
     textShadow: "0 2px 20px rgba(0,0,0,0.35)",
     animation: "titleReveal 0.9s cubic-bezier(.22,1,.36,1) 0.15s both",
   },
+  titleMobile: {
+    fontSize: "clamp(20px, 6vw, 28px)",
+  },
+  titleUnderline: {
+    width: "118px",
+    height: "4px",
+    background: "linear-gradient(90deg, rgba(74,222,128,0), #86efac, #7dd3fc, rgba(125,211,252,0))",
+    margin: "0 auto 18px",
+    boxShadow: "0 0 18px rgba(134,239,172,0.75)",
+    borderRadius: "999px",
+    animation: "titleReveal 0.9s cubic-bezier(.22,1,.36,1) 0.15s both",
+  },
   accent: {
     background: "linear-gradient(90deg, #4ade80, #86efac)",
     WebkitBackgroundClip: "text",
@@ -160,6 +206,10 @@ const styles = {
     lineHeight: 1.25,
     letterSpacing: "-0.3px",
   },
+  subtitleMobile: {
+    fontSize: "16px",
+    margin: "0 0 8px",
+  },
   body: {
     color: "rgb(255, 255, 255)",
     fontSize: "clamp(14px, 1.5vw, 16px)",
@@ -168,6 +218,37 @@ const styles = {
     maxWidth: "580px",
     marginBottom: "14px",
   },
+  bodyMobile: {
+    fontSize: "12.5px",
+    lineHeight: "1.5",
+    marginBottom: "10px",
+  },
+  cardRow: {
+    display: "flex",
+    flexDirection: "column",
+    width: "100%",
+  },
+  cardRowMobile: {
+    flexDirection: "column",
+    flexWrap: "nowrap",
+    gap: "25px",
+    padding: "10px 0 40px",
+    alignItems: "stretch",
+  },
+  sectionCard: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    width: "100%",
+    boxSizing: "border-box",
+    marginBottom: "40px",
+  },
+  sectionCardMobile: {
+    width: "100%",
+    boxSizing: "border-box",
+    marginBottom: "30px",
+    padding: "0",
+  },
   tableWrapper: {
     width: "100%",
     marginTop: "24px",
@@ -175,6 +256,7 @@ const styles = {
     border: "1px solid rgba(255,255,255,0.18)",
     borderRadius: "20px",
     padding: "16px",
+    boxSizing: "border-box",
     boxShadow: "inset 0 1px 0 rgba(255,255,255,0.12), 0 8px 24px rgba(0,0,0,0.15)",
     backdropFilter: "blur(20px) saturate(180%)",
     WebkitBackdropFilter: "blur(20px) saturate(180%)",
@@ -186,6 +268,11 @@ const styles = {
       "box-shadow 0.22s ease, " +
       "border-color 0.18s ease",
   },
+  tableWrapperMobile: {
+    padding: "10px",
+    marginTop: "14px",
+    borderRadius: "15px",
+  },
   tableWrapperHov: {
     transform: "translateY(-6px) scale(1.03)",
     background: "rgba(255,255,255,0.18)",
@@ -196,6 +283,7 @@ const styles = {
     width: "100%",
     borderCollapse: "collapse",
     textAlign: "left",
+    tableLayout: "fixed",
   },
   th: {
     padding: "14px 16px",
@@ -203,6 +291,11 @@ const styles = {
     color: "#4ade80",
     fontSize: "14px",
     fontWeight: 700,
+    overflowWrap: "break-word",
+  },
+  thMobile: {
+    padding: "10px 8px",
+    fontSize: "11px",
   },
   td: {
     padding: "14px 16px",
@@ -210,6 +303,13 @@ const styles = {
     color: "rgba(255,255,255,0.85)",
     fontSize: "14px",
     lineHeight: 1.6,
+    overflowWrap: "break-word",
+  },
+  tdMobile: {
+    padding: "10px 8px",
+    fontSize: "10.5px",
+    lineHeight: "1.4",
+    overflowWrap: "break-word",
   },
 };
 

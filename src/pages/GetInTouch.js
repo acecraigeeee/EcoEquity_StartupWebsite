@@ -29,6 +29,7 @@ function GetInTouch({ setActiveNav }) {
       <h1 style={styles.title}>
         Get in <span style={styles.accent}>Touch</span>
       </h1>
+      <div style={styles.titleUnderline} />
 
       <p style={styles.body}>
         We'd love to hear from you! Reach out to us for any inquiries,
@@ -107,6 +108,15 @@ const styles = {
     lineHeight: 1.15,
     letterSpacing: "-0.8px",
     textShadow: "0 2px 20px rgba(0,0,0,0.35)",
+    animation: "titleReveal 0.9s cubic-bezier(.22,1,.36,1) 0.15s both",
+  },
+  titleUnderline: {
+    width: "118px",
+    height: "4px",
+    background: "linear-gradient(90deg, rgba(74,222,128,0), #86efac, #7dd3fc, rgba(125,211,252,0))",
+    margin: "0 auto 18px",
+    boxShadow: "0 0 18px rgba(134,239,172,0.75)",
+    borderRadius: "999px",
     animation: "titleReveal 0.9s cubic-bezier(.22,1,.36,1) 0.15s both",
   },
   accent: {

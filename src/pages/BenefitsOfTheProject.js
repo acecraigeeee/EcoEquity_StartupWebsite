@@ -19,6 +19,7 @@ function BenefitsOfTheProject() {
       <h1 style={styles.title}>
         Benefits of the <span style={styles.accent}>Project</span>
       </h1>
+      <div style={styles.titleUnderline} />
 
       <p style={styles.body}>
         This project offers a dual benefit: financial viability by
@@ -47,11 +48,12 @@ function BenefitsOfTheProject() {
             key={s.label}
             style={{
               ...styles.statCell,
+              ...(isMobile ? styles.statCellMobile : {}),
               ...(i < arr.length - 1 ? styles.statCellDivider : {}),
             }}
           >
-            <span style={styles.statVal}>{s.value}</span>
-            <span style={styles.statLbl}>{s.label}</span>
+            <span style={{ ...styles.statVal, ...(isMobile ? styles.statValMobile : {}) }}>{s.value}</span>
+            <span style={{ ...styles.statLbl, ...(isMobile ? styles.statLblMobile : {}) }}>{s.label}</span>
           </div>
         ))}
       </div>
@@ -104,6 +106,15 @@ const styles = {
     textShadow: "0 2px 20px rgba(0,0,0,0.35)",
     animation: "titleReveal 0.9s cubic-bezier(.22,1,.36,1) 0.15s both",
   },
+  titleUnderline: {
+    width: "118px",
+    height: "4px",
+    background: "linear-gradient(90deg, rgba(74,222,128,0), #86efac, #7dd3fc, rgba(125,211,252,0))",
+    margin: "0 auto 18px",
+    boxShadow: "0 0 18px rgba(134,239,172,0.75)",
+    borderRadius: "999px",
+    animation: "titleReveal 0.9s cubic-bezier(.22,1,.36,1) 0.15s both",
+  },
   accent: {
     background: "linear-gradient(90deg, #4ade80, #86efac)",
     WebkitBackgroundClip: "text",
@@ -141,7 +152,7 @@ const styles = {
     transform: "translateY(-2px) scale(1.005)",
   },
   statsStripMobile: {
-    padding: "20px 25px",
+    padding: "12px 20px",
   },
 
   statCell: {
@@ -149,6 +160,9 @@ const styles = {
     flexDirection: "column",
     alignItems: "center",
     padding: "0 18px",
+  },
+  statCellMobile: {
+    padding: "0 10px",
   },
 
   statCellDivider: {
@@ -163,6 +177,9 @@ const styles = {
     lineHeight: 1.1,
     marginBottom: "3px", // Adjusted spacing
   },
+  statValMobile: {
+    fontSize: "18px",
+  },
 
   statLbl: {
     fontSize: "12px", // Made bigger
@@ -170,6 +187,9 @@ const styles = {
     color: "rgba(255,255,255,0.45)",
     letterSpacing: "0.9px",
     textTransform: "uppercase",
+  },
+  statLblMobile: {
+    fontSize: "9px",
   },
 };
 

@@ -1,19 +1,134 @@
 import React, { useState, useEffect, useRef } from "react";
 
-function AIChatInterface({ onClose, isMobile }) {
+// Core keywords for auto-correction logic
+const CORE_KEYWORDS = [
+  "human", "support", "agent", "connect", "person", "expert", "specialist",
+  "hello", "doctor", "thanks", "thank", "goodbye", "help", "diagnose",
+  "problem", "sick", "disease", "emergency", "dying", "urgent", "frustrated",
+  "payment", "account", "billing", "technical", "error", "bug", "real-time",
+  "detection", "symptoms", "yellow", "leaves", "wilting", "spots", "black",
+  "curling", "stunted", "pests", "bugs", "insects", "fertilizer", "nutrients",
+  "watering", "soil", "crop", "recommendations", "weather", "climate",
+  "rain", "drought", "organic", "farming", "sustainable", "maintenance",
+  "plant", "garden", "green", "agriculture", "healthy", "growth",
+  "doesn't", "sentence", "that", "what", "how", "when", "where", "why",
+  "information", "provide", "details", "identify", "suggestion", "advice",
+  "consult", "correction", "words", "detected", "fix", "please", "assist",
+  "assistant", "innovation", "platform", "marketplace", "urban", "traditional",
+  "household", "community", "earn", "grow", "food", "build", "philippines",
+  "beginner", "agritech", "local", "philippine", "ecoequity", "mission",
+  "goals", "sustainability", "products", "services", "edibles",
+  "hub", "market", "acquisition", "tactics", "growth", "partners", "customers",
+  "history", "timeline", "contact"
+];
+
+/**
+ * Calculates the Levenshtein distance between two strings to detect typos.
+ */
+const getLevenshteinDistance = (a, b) => {
+  if (!a || !b) return (a || b).length;
+  const m = [];
+  for (let i = 0; i <= b.length; i++) m[i] = [i];
+  for (let j = 0; j <= a.length; j++) m[0][j] = j;
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      m[i][j] = b.charAt(i - 1) === a.charAt(j - 1)
+        ? m[i - 1][j - 1]
+        : Math.min(m[i - 1][j - 1] + 1, m[i][j - 1] + 1, m[i - 1][j] + 1);
+    }
+  }
+  return m[b.length][a.length];
+};
+
+/**
+ * Normalizes input by correcting words that are close to the system keywords.
+ */
+const autoCorrect = (input) => {
+  if (!input) return "";
+  const parts = input.split(/(\s+)/);
+  let firstWordFound = false;
+  
+  return parts.map(part => {
+    if (/^\s+$/.test(part) || !part) return part;
+    
+    const word = part;
+    const cleanWord = word.toLowerCase().replace(/[^\w]/g, '');
+
+    const isCapitalized = /^[A-Z]/.test(word);
+    const isExactMatch = CORE_KEYWORDS.some(kw => kw.toLowerCase().replace(/[^\w]/g, '') === cleanWord);
+    
+    if (isCapitalized && !isExactMatch && firstWordFound) {
+      firstWordFound = true;
+      return word;
+    }
+    
+    firstWordFound = true;
+
+    if (cleanWord.length < 3) return word; 
+    
+    let bestMatch = word;
+    let minDistance = 3; 
+
+    for (const kw of CORE_KEYWORDS) {
+      const cleanKw = kw.toLowerCase().replace(/[^\w]/g, '');
+      const distance = getLevenshteinDistance(cleanWord, cleanKw);
+      if (distance < minDistance) { minDistance = distance; bestMatch = kw; }
+    }
+    return minDistance < 2 || (cleanWord.length > 5 && minDistance < 3) ? bestMatch : word;
+  }).join("");
+};
+
+/**
+ * Connects to a grammar correction engine (LanguageTool API).
+ */
+const performSentenceCorrection = async (text) => {
+  if (!text || text.trim().length < 4) return text;
+
+  try {
+    const response = await fetch("https://api.languagetool.org/v2/check", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ text, language: "en-US" }),
+    });
+
+    if (!response.ok) return text;
+    const data = await response.json();
+
+    let corrected = text;
+    const matches = (data.matches || []).sort((a, b) => b.offset - a.offset);
+
+    for (const match of matches) {
+      if (match.replacements && match.replacements.length > 0) {
+        const bestSuggestion = match.replacements[0].value;
+        corrected = 
+          corrected.substring(0, match.offset) + 
+          bestSuggestion + 
+          corrected.substring(match.offset + match.length);
+      }
+    }
+    return corrected;
+  } catch (err) {
+    console.error("Correction service unavailable:", err);
+    return text;
+  }
+};
+
+function AIChatInterface({ onClose, isMobile }) { // Removed autoCorrect and performSentenceCorrection
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [isOpen, setIsOpen] = useState(false); // State for animation
   const [isTyping, setIsTyping] = useState(false); // State to show typing indicator
   const [currentBot, setCurrentBot] = useState('general'); // 'general' or 'plantDoctor'
+  const [selectedImage, setSelectedImage] = useState(null); // State for selected image file
   const [conversationStep, setConversationStep] = useState('initial'); // 'initial', 'awaitingName', 'awaitingContactAndConcern'
   // State for human support escalation
   const [isLiveAgentChat, setIsLiveAgentChat] = useState(false); // To indicate if a live agent is active
 
   const messagesEndRef = useRef(null);
+  const textareaRef = useRef(null);
 
   const getPlantDoctorAIResponse = (userInput) => {
-    const lowerInput = userInput.toLowerCase();
+    const lowerInput = userInput.toLowerCase(); // Reverted to original
 
     // General greetings and conversational starters
     // Human Support & Escalation
@@ -192,7 +307,7 @@ function AIChatInterface({ onClose, isMobile }) {
   };
 
   const getGeneralAIResponse = (userInput) => {
-    const lowerInput = userInput.toLowerCase();
+    const lowerInput = userInput.toLowerCase(); // Reverted to original
 
     if (lowerInput.includes("hello") || lowerInput.includes("hi")) {
       return { text: "Hello there! I'm EcoEquityBot AI, your dedicated assistant from EcoEquity. How can I assist you with our agricultural innovations and platform today?", nextStep: 'initial' }; // Conversational
@@ -318,6 +433,77 @@ function AIChatInterface({ onClose, isMobile }) {
     }, 1000);
   };
 
+  const handleInputChange = (e) => {
+    setInput(e.target.value);
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    }
+  };
+
+  const handlePaste = (e) => {
+    const items = e.clipboardData.items;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf("image") !== -1) {
+        const blob = items[i].getAsFile();
+        setSelectedImage(blob);
+        break;
+      }
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      if (file.type.startsWith("image/")) {
+        setSelectedImage(file);
+      }
+    }
+  };
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setSelectedImage(file);
+    }
+  };
+
+  const handleHumanAgentToggle = () => {
+    if (isLiveAgentChat) {
+      setIsLiveAgentChat(false);
+      setConversationStep('initial');
+      setMessages((prevMessages) => [
+        ...prevMessages,
+        {
+          id: Date.now(),
+          text: "Live agent connection ended. You are back with the AI assistant.",
+          sender: "ai",
+        },
+      ]);
+      return;
+    }
+
+    setIsLiveAgentChat(true);
+    setConversationStep('liveAgentActive');
+    setMessages((prevMessages) => [
+      ...prevMessages,
+      {
+        id: Date.now(),
+        text:
+          "You are now connected with a human agriculture specialist. Please type your concern, photos/details you can describe, and your preferred contact information.",
+        sender: "agent",
+      },
+    ]);
+  };
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -334,46 +520,72 @@ function AIChatInterface({ onClose, isMobile }) {
     scrollToBottom(); // Scroll to bottom when messages change
   }, [messages]);
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (input.trim()) {
-      const userMessage = { id: Date.now(), text: input, sender: "user" };
-      setMessages((prevMessages) => [...prevMessages, userMessage]);
+      const rawInput = input;
       setInput("");
       setIsTyping(true);
 
+      // Apply fuzzy keyword correction followed by LanguageTool grammar check
+      const fuzzyText = autoCorrect(rawInput);
+      const correctedText = await performSentenceCorrection(fuzzyText);
+      
+      const userMessage = { id: Date.now(), text: correctedText, sender: "user" };
+      setMessages((prevMessages) => [...prevMessages, userMessage]);
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "auto";
+      }
+
       let aiResponseObject = { text: "", nextStep: 'initial' };
 
-      if (isLiveAgentChat) {
-        // If already in live agent chat, just simulate agent receiving message
-        aiResponseObject.text = `Live Agent: Thank you for your message. I'm reviewing your query now.`;
-        aiResponseObject.nextStep = 'liveAgentActive'; // Stay in live agent mode
-      } else if (conversationStep === 'awaitingContactAndConcern') {
-        // Assuming user provides name, contact, and concern in one message
-        const fullDetails = userMessage.text;
-        // A very basic attempt to extract name and contact for a more personalized message
-        const nameMatch = fullDetails.match(/(my name is|i am)\s+([a-zA-Z\s]+?)(?:,|\.|$)/i);
-        const extractedName = nameMatch && nameMatch[2] ? nameMatch[2].trim() : 'valued customer';
+      if (selectedImage) {
+        const imageUrl = URL.createObjectURL(selectedImage);
+        const imageMessage = { id: Date.now() + 0.5, imageUrl, sender: "user" };
+        setMessages((prevMessages) => [...prevMessages, imageMessage]);
+        setSelectedImage(null); // Clear selected image after sending
 
-        setIsLiveAgentChat(true); // Activate live agent mode
-
-        aiResponseObject.text = `Thank you, ${extractedName}! We have your details and are now connecting you. Please wait a moment.
-        \n\n**You are now connected with a Live Support Agent.**
-        \nLive Agent: Hello ${extractedName}, I've received your request regarding "${fullDetails}". How can I further assist you?`;
-        aiResponseObject.nextStep = 'liveAgentActive'; // Set a new step for active live agent chat
-
-        // Clear the input field after sending details to agent
-        setInput("");
-
+        // Simulate AI response to image
+        aiResponseObject.text = currentBot === 'plantDoctor'
+          ? "Thank you for sharing the image! I'm analyzing it now to provide the best possible diagnosis for your plant. What symptoms are you observing?"
+          : "Thank you for the image! I'm reviewing it. How can I help you with this regarding EcoEquity?";
+        aiResponseObject.nextStep = 'initial';
       } else {
-      // Simulate AI response
-        aiResponseObject = currentBot === 'plantDoctor' ? getPlantDoctorAIResponse(userMessage.text) : getGeneralAIResponse(userMessage.text);
+        if (isLiveAgentChat) {
+          // If already in live agent chat, just simulate agent receiving message
+          aiResponseObject.text = `Live Agent: Thank you for your message. I'm reviewing your query now.`;
+          aiResponseObject.nextStep = 'liveAgentActive'; // Stay in live agent mode
+        } else if (conversationStep === 'awaitingContactAndConcern') {
+          // Assuming user provides name, contact, and concern in one message
+          const fullDetails = correctedText;
+          // A very basic attempt to extract name and contact for a more personalized message
+          const nameMatch = fullDetails.match(/(my name is|i am)\s+([a-zA-Z\s]+?)(?:,|\.|$)/i);
+          const extractedName = nameMatch && nameMatch[2] ? nameMatch[2].trim() : 'valued customer';
+
+          setIsLiveAgentChat(true); // Activate live agent mode
+
+          aiResponseObject.text = `Thank you, ${extractedName}! We have your details and are now connecting you. Please wait a moment.
+          \n\n**You are now connected with a Live Support Agent.**
+          \nLive Agent: Hello ${extractedName}, I've received your request regarding "${fullDetails}". How can I further assist you?`;
+          aiResponseObject.nextStep = 'liveAgentActive'; // Set a new step for active live agent chat
+
+          // Clear the input field after sending details to agent
+          setInput("");
+
+        } else {
+          // Simulate AI response
+          aiResponseObject = currentBot === 'plantDoctor' ? getPlantDoctorAIResponse(correctedText) : getGeneralAIResponse(correctedText);
+        }
       } 
+
       setTimeout(() => {
         const aiResponse = {
           id: Date.now() + 1,
           text: aiResponseObject.text,
           sender: isLiveAgentChat ? "agent" : "ai", // Differentiate AI from simulated agent
         };
+        // If an image was sent, the AI's response should follow the image message.
+        // If only text was sent, the AI's response follows the text message.
+        // The current logic correctly appends the AI response after the user's last message (text or image).
         setMessages((prevMessages) => [...prevMessages, aiResponse]);
         setIsTyping(false);
         setConversationStep(aiResponseObject.nextStep || 'initial'); // Update conversation step
@@ -381,8 +593,9 @@ function AIChatInterface({ onClose, isMobile }) {
     }
   };
 
-  const handleKeyPress = (e) => {
-    if (e.key === "Enter") {
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
       handleSendMessage();
     }
   };
@@ -390,27 +603,86 @@ function AIChatInterface({ onClose, isMobile }) {
   return (
     <div style={aiChatStyles.overlay}> {/* Removed onClick={onClose} to prevent closing on overlay click */}
       <div
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
         style={{
           ...aiChatStyles.chatContainer,
           // The chatContainer itself should not close the chat when clicked
           ...(isMobile ? aiChatStyles.chatContainerMobile : {}), // Apply mobile styles
           opacity: isOpen ? 1 : 0,
-          transform: isOpen ? "scale(1)" : "scale(0.95)",
+          transform: isMobile
+            ? isOpen ? "translate(-50%, -50%) scale(1)" : "translate(-50%, -50%) scale(0.95)"
+            : isOpen ? "scale(1)" : "scale(0.95)",
         }}
       >
+        <style>
+          {`
+            .slim-scroll::-webkit-scrollbar {
+              width: 5px;
+            }
+            .slim-scroll::-webkit-scrollbar-track {
+              background: transparent;
+            }
+            .slim-scroll::-webkit-scrollbar-thumb {
+              background: rgba(255, 255, 255, 0.15);
+              border-radius: 10px;
+            }
+            .slim-scroll::-webkit-scrollbar-thumb:hover {
+              background: rgba(255, 255, 255, 0.25);
+            }
+            .slim-scroll {
+              scrollbar-width: thin;
+              scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+            }
+          `}
+        </style>
         {/* Prevent clicks inside the chat container from closing the chat */}
         <div style={aiChatStyles.chatHeader}>
-          <h3 style={aiChatStyles.chatTitle}>
-            {currentBot === 'general' ? 'Chat with EcoEquityBot AI' : 'Chat with AI Plant Doctor'}
-          </h3>
-          <button onClick={handleToggleBot} style={aiChatStyles.toggleBotButton}>
-            {currentBot === 'general' ? 'Switch to Plant Doctor' : 'Switch to General AI'}
-          </button>
-          <button onClick={onClose} style={aiChatStyles.closeButton}>
-            &times;
-          </button>
+          <div style={aiChatStyles.headerText}>
+            <span style={aiChatStyles.statusPill}>
+              <span style={aiChatStyles.statusDot} />
+              Online
+            </span>
+            <h3 style={aiChatStyles.chatTitle}>
+              {currentBot === 'general' ? 'EcoEquityBot AI' : 'AI Plant Doctor'}
+            </h3>
+          </div>
+          <div style={aiChatStyles.headerActions}>
+            <div style={aiChatStyles.switcherStack}>
+              <button onClick={handleToggleBot} style={{ ...aiChatStyles.toggleBotButton, ...(isMobile ? aiChatStyles.toggleBotButtonMobile : {}) }}>
+                {currentBot === 'general' ? 'Plant Doctor' : 'General AI'}
+              </button>
+              <button
+                type="button"
+                onClick={handleHumanAgentToggle}
+                style={{
+                  ...aiChatStyles.agentSwitch,
+                  ...(isLiveAgentChat ? aiChatStyles.agentSwitchActive : {}),
+                }}
+                aria-pressed={isLiveAgentChat}
+              >
+                <span
+                  style={{
+                    ...aiChatStyles.agentSwitchTrack,
+                    ...(isLiveAgentChat ? aiChatStyles.agentSwitchTrackActive : {}),
+                  }}
+                >
+                  <span
+                    style={{
+                      ...aiChatStyles.agentSwitchThumb,
+                      ...(isLiveAgentChat ? aiChatStyles.agentSwitchThumbActive : {}),
+                    }}
+                  />
+                </span>
+                Human agent
+              </button>
+            </div>
+            <button onClick={onClose} style={{ ...aiChatStyles.closeButton, ...(isMobile ? aiChatStyles.closeButtonMobile : {}) }}>
+              &times;
+            </button>
+          </div>
         </div>
-        <div style={aiChatStyles.messagesContainer}>
+        <div style={aiChatStyles.messagesContainer} className="slim-scroll">
           {messages.length === 0 && (
             <p style={aiChatStyles.welcomeMessage}>
               {currentBot === 'general'
@@ -432,32 +704,80 @@ function AIChatInterface({ onClose, isMobile }) {
                   : msg.sender === "agent" ? aiChatStyles.agentMessage : aiChatStyles.aiMessage), // Differentiate agent messages
               }}
             >
+              {msg.imageUrl && (
+                <img src={msg.imageUrl} alt="User uploaded" style={aiChatStyles.uploadedImage} />
+              )}
               {msg.text}
             </div>
           ))}
           {isTyping && (
-            <div style={{ ...aiChatStyles.messageBubble, ...aiChatStyles.aiMessage }}>
-              {currentBot === 'general'
-                ? isLiveAgentChat
-                  ? 'Live Agent is typing...'
-                  : 'EcoEquityBot AI is typing...'
+            <div
+              style={{
+                ...aiChatStyles.messageBubble,
+                ...(isLiveAgentChat ? aiChatStyles.agentMessage : aiChatStyles.aiMessage),
+              }}
+            >
+              {isLiveAgentChat
+                ? 'Human specialist is typing...'
+                : currentBot === 'general'
+                ? 'EcoEquityBot AI is typing...'
                 : 'AI Plant Doctor is typing...'}
             </div>
           )}
           <div ref={messagesEndRef} />
         </div>
         <div style={aiChatStyles.inputContainer}>
-          <input
-            type="text"
+          <textarea
+            ref={textareaRef}
+            className="slim-scroll"
+            rows={1}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyPress={handleKeyPress}
+            onChange={handleInputChange}
+            onPaste={handlePaste}
+            onKeyDown={handleKeyDown}
             placeholder={isLiveAgentChat
-              ? "Type your message to the live agent..."
-              : (currentBot === 'general' ? "Ask about EcoEquity..." : "Ask about your plants...")}
-            style={aiChatStyles.chatInput}
+              ? "Type your message to the live agent..." : (currentBot === 'general' ? "Ask about EcoEquity..." : "Ask about your plants...")}
+            style={{ ...aiChatStyles.chatInput, ...(isMobile ? aiChatStyles.chatInputMobile : {}) }}
           />
-          <button onClick={handleSendMessage} style={aiChatStyles.sendButton}>
+          <button
+            type="button"
+            onClick={() => document.getElementById('imageUploadInput').click()}
+            style={{ ...aiChatStyles.attachButton, ...(isMobile ? aiChatStyles.attachButtonMobile : {}) }}
+            aria-label="Upload image"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="17"
+              height="17"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+              <circle cx="12" cy="13" r="4"></circle>
+            </svg>
+          </button>
+          <input
+            type="file"
+            id="imageUploadInput"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={handleImageChange}
+          />
+          {selectedImage && (
+            <div style={aiChatStyles.imagePreviewContainer}>
+              <img src={URL.createObjectURL(selectedImage)} alt="Preview" style={aiChatStyles.imagePreview} />
+              <button onClick={() => setSelectedImage(null)} style={aiChatStyles.clearImageButton}>x</button>
+            </div>
+          )}
+          <button
+            onClick={handleSendMessage}
+            style={{ ...aiChatStyles.sendButton, ...(isMobile ? aiChatStyles.sendButtonMobile : {}) }}
+            aria-label="Send message"
+          >
             Send
           </button>
         </div>
@@ -473,144 +793,353 @@ const aiChatStyles = {
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "transparent", // Changed to transparent to allow background content to be visible
+    background:
+      "linear-gradient(135deg, rgba(1, 10, 7, 0.94), rgba(2, 20, 16, 0.90))",
+    backdropFilter: "blur(45px) saturate(150%)",
+    WebkitBackdropFilter: "blur(45px) saturate(150%)",
     display: "flex",
     justifyContent: "flex-end", // Align content to the right
     alignItems: "flex-end",     // Align content to the bottom
     zIndex: 1000,
-    padding: "20px", // Add padding to keep the chat window off the edges of the panel
+    padding: "24px", // Adjusted padding slightly for a better float
     boxSizing: "border-box", // Ensure padding is included in the total size
   },
   chatContainer: {
-    background: "rgba(255, 255, 255, 0.15)", // Glass effect background
-    backdropFilter: "blur(20px) saturate(180%)",
-    WebkitBackdropFilter: "blur(20px) saturate(180%)",
-    borderRadius: "20px",
-    border: "1px solid rgba(255, 255, 255, 0.2)",
-    boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.37)",
-    width: "350px", // Fixed width for the chat window
-    height: "500px", // Fixed height for the chat window
+    background:
+      "linear-gradient(145deg, rgba(255,255,255,0.24), rgba(255,255,255,0.10))",
+    backdropFilter: "blur(32px) saturate(180%)",
+    WebkitBackdropFilter: "blur(32px) saturate(180%)",
+    borderRadius: "24px",
+    border: "1px solid rgba(255, 255, 255, 0.26)",
+    boxShadow:
+      "0 28px 70px rgba(0, 0, 0, 0.38), " +
+      "inset 0 1px 0 rgba(255,255,255,0.32)",
+    width: "390px",
+    height: "540px",
     display: "flex",
     flexDirection: "column",
     overflow: "hidden",
     color: "#fff",
+    fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
     transition: "opacity 0.3s ease-out, transform 0.3s ease-out", // Animation transition
   },
   chatContainerMobile: {
-    width: "90%", // Take up more width on mobile
-    height: "70%", // Take up more height on mobile
+    width: "92%", // Take up more width on mobile
+    height: "76%", // Take up more height on mobile
     position: "absolute", // Override flex positioning for centering
     top: "50%",
     left: "50%",
     right: "auto", // Reset right alignment
     bottom: "auto", // Reset bottom alignment
-    transform: "translate(-50%, -50%)", // Center the chat window
     maxWidth: "none", // Allow full width
     maxHeight: "none", // Allow full height
   },
   toggleBotButton: {
-    background: "rgba(255, 255, 255, 0.1)",
-    border: "1px solid rgba(255, 255, 255, 0.2)",
+    background: "rgba(255, 255, 255, 0.13)",
+    border: "1px solid rgba(255, 255, 255, 0.24)",
     color: "#fff",
-    fontSize: "0.75em", // Smaller font size
-    fontWeight: 500,
+    fontSize: "12px",
+    fontWeight: 700,
     cursor: "pointer",
-    padding: "6px 10px", // Smaller padding
-    borderRadius: "15px",
+    padding: "8px 12px",
+    borderRadius: "999px",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.22)",
+    transition: "background 0.16s ease, transform 0.16s ease",
+  },
+  toggleBotButtonMobile: { // New mobile style
+    fontSize: "11px",
+    padding: "7px 10px",
   },
   chatHeader: {
-    padding: "15px 20px",
-    borderBottom: "1px solid rgba(255, 255, 255, 0.2)",
+    padding: "16px 18px",
+    borderBottom: "1px solid rgba(255, 255, 255, 0.16)",
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
+    gap: "12px",
+    background:
+      "linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.04))",
+  },
+  headerText: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-start",
+    gap: "6px",
+    minWidth: 0,
+  },
+  headerActions: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    flexShrink: 0,
+  },
+  switcherStack: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "stretch",
+    gap: "6px",
+  },
+  agentSwitch: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "7px",
+    padding: "5px 8px",
+    borderRadius: "999px",
+    border: "1px solid rgba(255,255,255,0.16)",
+    background: "rgba(255,255,255,0.08)",
+    color: "rgba(255,255,255,0.78)",
+    fontSize: "10px",
+    fontWeight: 800,
+    letterSpacing: "0.2px",
+    cursor: "pointer",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.12)",
+  },
+  agentSwitchActive: {
+    background: "rgba(134,239,172,0.16)",
+    border: "1px solid rgba(134,239,172,0.34)",
+    color: "#ffffff",
+  },
+  agentSwitchTrack: {
+    width: "24px",
+    height: "14px",
+    borderRadius: "999px",
+    background: "rgba(255,255,255,0.18)",
+    position: "relative",
+    flexShrink: 0,
+    transition: "background 0.16s ease",
+  },
+  agentSwitchTrackActive: {
+    background: "linear-gradient(135deg, #86efac, #7dd3fc)",
+  },
+  agentSwitchThumb: {
+    position: "absolute",
+    top: "2px",
+    left: "2px",
+    width: "10px",
+    height: "10px",
+    borderRadius: "50%",
+    background: "#ffffff",
+    boxShadow: "0 2px 5px rgba(0,0,0,0.25)",
+    transition: "transform 0.16s ease",
+  },
+  agentSwitchThumbActive: {
+    transform: "translateX(10px)",
+  },
+  statusPill: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "6px",
+    color: "rgba(255,255,255,0.72)",
+    fontSize: "10px",
+    fontWeight: 700,
+    letterSpacing: "0.8px",
+    textTransform: "uppercase",
+  },
+  statusDot: {
+    width: "7px",
+    height: "7px",
+    borderRadius: "50%",
+    background: "#86efac",
+    boxShadow: "0 0 12px rgba(134,239,172,0.95)",
+    display: "inline-block",
   },
   chatTitle: {
     margin: 0,
-    fontSize: "1.2em",
-    fontWeight: 600,
+    fontSize: "18px",
+    fontWeight: 800,
+    letterSpacing: "0",
+    fontFamily: "'Poppins', sans-serif",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    background: "linear-gradient(90deg, #86efac, #7dd3fc)",
+    WebkitBackgroundClip: "text",
+    WebkitTextFillColor: "transparent",
+    backgroundClip: "text",
   },
   closeButton: {
-    background: "none",
-    border: "none",
+    background: "rgba(255,255,255,0.11)",
+    border: "1px solid rgba(255,255,255,0.18)",
+    borderRadius: "50%",
     color: "#fff",
-    fontSize: "1.5em",
+    fontSize: "20px",
+    lineHeight: 1,
     cursor: "pointer",
-    padding: "5px 10px",
-    borderRadius: "5px",
-    transition: "background 0.2s ease",
+    width: "34px",
+    height: "34px",
+    padding: 0,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.18)",
+  },
+  closeButtonMobile: { // New mobile style
+    fontSize: "18px",
+    width: "32px",
+    height: "32px",
   },
   messagesContainer: {
     flexGrow: 1,
-    padding: "20px",
+    padding: "18px",
     overflowY: "auto",
     display: "flex",
     flexDirection: "column",
-    gap: "10px",
+    gap: "12px",
+    background:
+      "radial-gradient(circle at 18% 10%, rgba(134,239,172,0.12), transparent 28%), " +
+      "radial-gradient(circle at 88% 22%, rgba(125,211,252,0.10), transparent 30%)",
   },
   welcomeMessage: {
     textAlign: "center",
-    color: "rgba(255, 255, 255, 0.7)",
-    fontStyle: "italic",
+    color: "rgba(255, 255, 255, 0.78)",
+    fontSize: "14px",
+    lineHeight: 1.65,
+    margin: "auto 8px",
+    padding: "22px 18px",
+    borderRadius: "18px",
+    background: "rgba(255,255,255,0.08)",
+    border: "1px solid rgba(255,255,255,0.14)",
   },
   messageBubble: {
-    maxWidth: "80%",
-    padding: "10px 15px",
-    borderRadius: "15px",
+    maxWidth: "82%",
+    padding: "11px 14px",
+    borderRadius: "17px",
     // Add specific border radius for the sender to make it look like a chat bubble
-    borderBottomLeftRadius: "5px",
-    borderBottomRightRadius: "5px",
+    borderBottomLeftRadius: "7px",
+    borderBottomRightRadius: "7px",
     wordWrap: "break-word",
+    fontSize: "13.5px",
+    lineHeight: 1.5,
+    whiteSpace: "pre-line",
+    boxShadow: "0 10px 24px rgba(0,0,0,0.15)",
   },
   userMessage: {
     alignSelf: "flex-end",
-    backgroundColor: "rgba(135, 206, 235, 0.8)", // Light blue, slightly transparent
-    color: "#000", // Darker text for contrast
+    background: "linear-gradient(135deg, rgba(125,211,252,0.95), rgba(134,239,172,0.92))",
+    color: "#062018",
     borderBottomRightRadius: "5px",
-    borderTopRightRadius: "15px",
-    borderTopLeftRadius: "15px",
+    borderTopRightRadius: "17px",
+    borderTopLeftRadius: "17px",
   },
   aiMessage: {
     alignSelf: "flex-start",
-    backgroundColor: "rgba(144, 238, 144, 0.8)", // Soft green, slightly transparent
+    background: "rgba(255,255,255,0.13)",
+    border: "1px solid rgba(255,255,255,0.16)",
+    color: "rgba(255,255,255,0.90)",
     borderBottomLeftRadius: "5px",
-    borderTopLeftRadius: "15px",
-    borderTopRightRadius: "15px",
+    borderTopLeftRadius: "17px",
+    borderTopRightRadius: "17px",
+    backdropFilter: "blur(14px) saturate(150%)",
+    WebkitBackdropFilter: "blur(14px) saturate(150%)",
   },
   agentMessage: {
     alignSelf: "flex-start",
-    backgroundColor: "rgba(255, 204, 0, 0.8)", // A distinct color for agent messages (e.g., amber)
+    background: "linear-gradient(135deg, #fef08a, #facc15)",
+    color: "#422006",
+    border: "1px solid rgba(254, 240, 138, 0.4)",
     borderBottomLeftRadius: "5px",
-    borderTopLeftRadius: "15px",
-    borderTopRightRadius: "15px",
+    borderTopLeftRadius: "17px",
+    borderTopRightRadius: "17px",
+    boxShadow: "0 10px 25px rgba(234, 179, 8, 0.3)",
   },
   messageBubbleMobile: { maxWidth: "90%" },
   inputContainer: {
-    padding: "15px 20px",
-    borderTop: "1px solid rgba(255, 255, 255, 0.2)",
+    padding: "14px 16px 16px",
+    borderTop: "1px solid rgba(255, 255, 255, 0.16)",
     display: "flex",
     gap: "10px",
+    background: "rgba(255,255,255,0.08)",
+    alignItems: "flex-end",
   },
   chatInput: {
     flexGrow: 1,
-    padding: "10px 15px",
-    borderRadius: "20px",
-    border: "1px solid rgba(255, 255, 255, 0.3)",
-    background: "rgba(255, 255, 255, 0.15)",
+    minWidth: 0,
+    padding: "12px 15px",
+    borderRadius: "18px",
+    border: "1px solid rgba(255, 255, 255, 0.24)",
+    background: "rgba(3, 20, 16, 0.28)",
     color: "#fff",
-    fontSize: "1em",
+    fontSize: "14px",
     outline: "none",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.12)",
+    resize: "none",
+    maxHeight: "150px",
+    overflowY: "auto",
+    lineHeight: "1.5",
+    fontFamily: "inherit",
+  },
+  chatInputMobile: { // New mobile style
+    fontSize: "13px",
+    padding: "10px 12px",
   },
   sendButton: {
-    padding: "10px 20px",
-    borderRadius: "20px",
-    border: "none",
-    background: "linear-gradient(145deg, #87CEEB 0%, #6495ED 100%)",
-    color: "#fff",
-    fontSize: "0.9em",
-    fontWeight: 600,
+    padding: "11px 18px",
+    borderRadius: "999px",
+    border: "1px solid rgba(255,255,255,0.34)",
+    background: "linear-gradient(135deg, rgba(134,239,172,0.98), rgba(125,211,252,0.96))",
+    color: "#062018",
+    fontSize: "13px",
+    fontWeight: 800,
     cursor: "pointer",
+    boxShadow: "0 14px 30px rgba(34,197,94,0.24), inset 0 1px 0 rgba(255,255,255,0.48)",
+  },
+  sendButtonMobile: { // New mobile style
+    fontSize: "12px",
+    padding: "10px 14px",
     transition: "transform 0.16s ease, box-shadow 0.16s ease",
+  },
+  attachButton: {
+    background: "rgba(255,255,255,0.12)",
+    border: "1px solid rgba(255,255,255,0.24)",
+    borderRadius: "999px",
+    color: "#fff",
+    fontSize: "18px",
+    width: "40px",
+    height: "40px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.12)",
+    flexShrink: 0,
+  },
+  attachButtonMobile: {
+    fontSize: "16px",
+    width: "36px",
+    height: "36px",
+  },
+  uploadedImage: {
+    maxWidth: "100%",
+    maxHeight: "200px",
+    borderRadius: "10px",
+    marginBottom: "8px",
+  },
+  imagePreviewContainer: {
+    position: "relative",
+    marginRight: "10px",
+  },
+  imagePreview: {
+    width: "50px",
+    height: "50px",
+    objectFit: "cover",
+    borderRadius: "8px",
+  },
+  clearImageButton: {
+    position: "absolute",
+    top: "-5px",
+    right: "-5px",
+    background: "rgba(0,0,0,0.6)",
+    color: "#fff",
+    border: "none",
+    borderRadius: "50%",
+    width: "20px",
+    height: "20px",
+    fontSize: "12px",
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
   },
 };
 
